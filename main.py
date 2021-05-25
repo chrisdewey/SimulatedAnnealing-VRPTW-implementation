@@ -1,0 +1,143 @@
+# Christian Dewey, Student ID: #000957010
+import csv
+from model.item_to_deliver import Package
+from model.destination import Destination
+from model.truck import Truck
+from controller.deliver import deliver
+import model.destination
+import controller.hashing_with_chaining
+# it might be better to use hashing with chaining rather than open-addressing... depends how pythons hash() works
+#   and how the data is imported and hashed out (like what key is used??)
+# from controller.load_item_data import load_items
+
+# Load Trucks, which packages go into which truck, what time do they leave
+# Truck Routes
+# For UI: user passes in the Time, outputs statuses of Mileage, package statuses & info (is it in hub, delivered? etc)
+# UI can just be a console application
+
+# ideas for optimizing:
+#   you can hold a truck until 9, need to optimize miles NOT time.
+#   maybe use a priority queue, first a normal queue for mile optimization, then introduce priorities based
+#       upon special requests like time requirements etc????
+#   https://www.youtube.com/watch?v=SC5CX8drAtU watch this for ideas on optimization
+#   https://youtu.be/v5kaDxG5w30?t=588 also this at this time
+#   might want to change hash function to a different type, maybe reference textbook. save optimization like this
+#       for after the functionality is complete.
+
+from pathlib import Path
+# from operator import attrgetter  -> this is for getting the attribute. can get attribute of a list of model and
+#       sort by the specific attribute (like distance from hub etc)??
+
+
+def user_search():  # will need to adapt to allow input of time as well?? implement after figuring out algo i guess.
+    search_id = input('Enter the package ID for lookup, or type Exit to exit: ')
+
+    exit_words = ['exit', 'x', 'close', 'bye', 'end']
+    if search_id.lower() in exit_words:
+        print('Goodbye.')
+        return
+
+    try:
+        search_id = int(search_id)
+        item = hash_instance_packages.search(search_id)
+        if item is not None:
+            print(item)
+            user_search()
+        else:
+            print('Could not Find Package: ' + str(search_id))
+            user_search()
+    except ValueError:
+        print('Could Not Find Package: ' + search_id)
+        user_search()
+
+
+def load_items(input_data, header_lines):
+    with open(input_data) as items:
+        data = csv.reader(items, delimiter=',')
+
+        for i in range(0, header_lines):
+            next(data, None)  # skip specified number of header lines
+
+        for item in data:  # parse data into separate items
+            new_id = int(item[0])
+            new_address = item[1]
+            new_city = item[2]
+            new_state = item[3]
+            new_zip = item[4]
+            new_deadline = item[5]
+            new_mass = item[6]
+            if item[7] == '':
+                new_notes = None
+            else:
+                new_notes = item[7]
+
+            # create item object
+            new_item = Package(new_id, new_address, new_city, new_state, new_zip, new_deadline, new_mass, new_notes)
+
+            hash_instance_packages.insert(new_item, new_id)
+            # print(hash_instance_packages.search(new_id))
+
+
+def load_destinations(input_data, header_lines):
+    with open(input_data) as places:
+        data = csv.reader(places, delimiter=',')
+        num_col = len(next(data))  # Number of columns in the csv file,
+        for i in range(0, header_lines-1):  # TODO: if there is no header lines, then ^ this skips the first element
+            next(data, None)  # skip specified number of header lines
+
+        place_num = 0
+        for place in data:
+            name = place[0]
+            address = place[1]
+            i = 2
+            distances = []
+            while place[i] != '' and i < num_col-1:  # create list of all given distance references
+                distances.append(place[i])
+                i += 1
+
+            new_place = Destination(place_num, name, address, distances)
+
+            hash_instance_destinations.insert(new_place, address)  # TODO: change to a graph!!
+            # could instead loop though csv for every lookup, but this could be very slow/??
+            # Or, and hear me out here -> if the destination[] list is longer, then it's closer to the bottom of the
+            # csv file anyway, so just compare their len() and the one with the longer one is daddy. papa.
+            place_num += 1  # increment place_num for use as id/index
+            # print(hash_instance_destinations.search(address))
+            # print()
+
+
+def load_trucks(num_of_trucks):
+    package_list = []
+    for i in range(1, 41):  # TODO: make dynamic
+        package_list.append(i)
+    route = 1
+    truck = None
+    for i in range(1, num_of_trucks+1):
+        truck = Truck(i, package_list, route)
+    return truck
+
+
+def deliver():
+    print(trucks.location)
+    for package in trucks.packages:
+        # print(hash_instance_packages.search(package))
+        # TODO: access packages destination address' distance from current location
+        print()
+
+
+# path to the csv file
+data_path = Path("data/WGUPS Package File.csv")
+data_path_destination = Path("data/WGUPS Distance Table.csv")
+
+# initialize the ChainingHashTable instance
+hash_instance_packages = controller.hashing_with_chaining.ChainingHashTable()
+hash_instance_destinations = controller.hashing_with_chaining.ChainingHashTable()
+
+
+load_items(data_path, 8)  # second argument = the number of header lines to skip before processing the data.
+load_destinations(data_path_destination, 8)
+
+# user_search()
+
+trucks = load_trucks(1)
+deliver()
