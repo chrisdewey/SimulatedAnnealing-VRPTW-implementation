@@ -14,3 +14,6 @@ class Package:
         return "%s, %s, %s, %s, %s, %s, %s, %s, %s" %\
                (self.id_, self.address, self.city, self.state,
                 self.zip_, self.deadline, self.mass, self.notes, self.status)
+
+    def get_address(self):
+        return ' ' + self.address + '\n' + '(' + self.zip_ + ')'
