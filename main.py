@@ -82,9 +82,10 @@ def load_items(input_data, header_lines):
 def load_destinations(input_data, header_lines):
     with open(input_data) as places:
         data = csv.reader(places, delimiter=',')
-        num_col = len(next(data))  # Number of columns in the csv file,
-        for i in range(0, header_lines-1):  # TODO: if there is no header lines, then ^ this skips the first element
-            next(data, None)  # skip specified number of header lines
+        num_col = len(next(data))  # count number of columns in the csv file
+        places.seek(0)  # Return csv reader back to start of file
+        for i in range(0, header_lines):  # skip specified number of header lines
+            next(data, None)
 
         for place in data:  # Add all vertices to the graph.
             address = place[1]
@@ -93,15 +94,10 @@ def load_destinations(input_data, header_lines):
             # print(vertex)
 
         places.seek(0)  # Return csv reader back to start of file.
-        for i in range(0, header_lines):  # TODO Okayyyyyy i'm not following what's happening here. don't know why it's
-            #                               TODO not the same as the one above, header_lines-1 includes an unwanted row.
-            #                               TODO but i'm not quite sure where to place the places.seek() 0 or 1????
-            next(data, None)  # skip specified number of header lines
+        for i in range(0, header_lines):  # skip specified number of header lines
+            next(data, None)
 
         index_counter = 0
-#        keys_list = list(graph_instance.adjacency_list)
-#        print(keys_list)
-
         for place in data:  # Add edges to the graph.
             name = place[0]
             address = place[1]
@@ -115,31 +111,62 @@ def load_destinations(input_data, header_lines):
                     vertex_b = graph_instance.vertex_list[i-2]
                     distance = float(place[i])
                     graph_instance.add_undirected_edge(vertex_a, vertex_b, distance)
-                    # TODO with add_undirected_edge it gives 28 members to each vertex, with directed, it gives 1 then 2
-                    # TODO then 3 etc.. also the last vertex is missing its last connection, b/c there's an index out of
-                    # TODO bounds error stemming from num_col-1 i believe...
+                    # with add_undirected_edge it gives 28 members to each vertex, with directed, it gives 1 then 2
+                    #   then 3 etc.. also the last vertex is missing its last connection, b/c there's an index out of
+                    #   bounds error stemming from num_col-1 i believe...
 
                 i += 1
 
             index_counter += 1
 
 
-def load_trucks(num_of_trucks):
-    package_list = []
-    for i in range(1, 41):  # TODO: make dynamic
-        package_list.append(i)
+# TODO first implement nearest neighbor, then 2-opt swaps, then multiple trucks w/ req
+def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm
+    package_list = []  # Make a queue? Faster then list for our needs? Prob not???????
+    unvisited_locations = []
+    for i in range(1, num_packages+1):  # add all packages to unvisited_locations list
+        unvisited_locations.append(i)
+
+    start = ' HUB'
+    current_location = graph_instance.get_vertex(start)
+
+    # Less than O(N^2) time? b/c list is decreasing w/ each iteration... ask StackOverflow?
+    while unvisited_locations:  # While unvisited_locations list is not empty:
+        closest_package = hash_instance_packages.search(unvisited_locations[0])
+        closest_neighbor = graph_instance.get_vertex(closest_package.get_address())
+        for i in range(1, num_packages+1):
+            if i not in unvisited_locations:
+                continue
+            package = hash_instance_packages.search(i)
+            package_location = graph_instance.get_vertex(package.get_address())
+
+            # if package_location == current_location:  # not sure if i need this???????????????????
+            #   break
+
+            package_distance = graph_instance.get_distance(current_location, package_location)
+            closest_neighbor_distance = graph_instance.get_distance(current_location, closest_neighbor)
+
+            if package_distance < closest_neighbor_distance:
+                closest_neighbor = package_location
+                closest_package = package
+
+        current_location = closest_neighbor
+        package_list.append(closest_package)
+
+        unvisited_locations.remove(closest_package.id_)
+    # TODO After packages added to list, truck needs to return home (last vertex needs edge to HUB)
+    #   Add into the deliver() method?
+    # return_to_hub = graph_instance.get_vertex(start)
     route = 1
     truck = None
-    for i in range(1, num_of_trucks+1):  # TODO needs rework for when using more than 1 truck.
-        truck = Truck(i, package_list, '8:00', route)
+    for i in range(0, num_of_trucks):  # TODO needs rework for when using more than 1 truck.
+        truck = Truck(i+1, package_list, '8:00', route)
     return truck
 
 
 def deliver(loaded_truck):
     packages_delivered = 0
-    for package_id in loaded_truck.packages:
-        package = hash_instance_packages.search(package_id)
-
+    for package in loaded_truck.packages:
         current_location = graph_instance.get_vertex(loaded_truck.location)
         next_location = graph_instance.get_vertex(package.get_address())
 
@@ -167,7 +194,7 @@ def time_string_forward(current_time, travel_time):
     # format minutes
     split_time[1] = split_time[1] % 60
 
-    if split_time[1] // 10 < 1:
+    if split_time[1] // 10 < 1:  # If minutes is single digit, add a preceding 0 for correct format.
         return '%s:0%s' % (split_time[0], split_time[1])
     else:
         return '%s:%s' % (split_time[0], split_time[1])
@@ -188,6 +215,6 @@ load_destinations(data_path_destination, 8)
 
 # user_search()
 
-trucks = load_trucks(1)
+trucks = load_trucks(1, 40)
 
 deliver(trucks)

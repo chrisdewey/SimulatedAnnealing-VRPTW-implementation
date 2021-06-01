@@ -13,9 +13,6 @@ class Truck:
         for i in range(0, len(self.packages)):
             print(self.packages(i))
 
-    def travel(self, package):
-        pass
-
     def remove_package(self, package):
         self.packages.remove(package)
 

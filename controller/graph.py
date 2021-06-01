@@ -8,17 +8,17 @@ class Vertex:
 
 class Graph:
     def __init__(self):
-        self.adjacency_list = {}  # TODO might not need this!! delete? b/c it will always be a complete graph??
+        # self.adjacency_list = {}  # TODO might not need this!! delete? b/c it will always be a complete graph??
         self.edge_weights = {}
         self.vertex_list = []  # new
 
-    def add_vertex(self, new_vertex):  # TODO make get_vertex method???
-        self.adjacency_list[new_vertex] = []
+    def add_vertex(self, new_vertex):
+        # self.adjacency_list[new_vertex] = []
         self.vertex_list.append(new_vertex)  # new
 
     def add_directed_edge(self, from_vertex, to_vertex, weight=1.0):
         self.edge_weights[(from_vertex, to_vertex)] = weight
-        self.adjacency_list[from_vertex].append(to_vertex)
+        # self.adjacency_list[from_vertex].append(to_vertex)
 
     def add_undirected_edge(self, vertex_a, vertex_b, weight=1.0):
         self.add_directed_edge(vertex_a, vertex_b, weight)
