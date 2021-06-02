@@ -1,6 +1,6 @@
 # TODO put name and student id before submitting
 import csv
-from model.item_to_deliver import Package
+from model.package import Package
 from model.destination import Destination
 from model.truck import Truck
 from controller.deliver import deliver
@@ -31,6 +31,10 @@ from pathlib import Path
 
 
 def user_search():  # will need to adapt to allow input of time as well?? implement after figuring out algo i guess.
+    #   Maybe just print out a list of all packages and their statuses at the user-inputted time specified. Read sec. G
+
+    #   after calculating routes, user enters specified time and recalculate package/truck positions and times to show
+    #       store end_time for after all trucks finish their route? use this if they specify later time, return complete
     search_id = input('Enter the package ID for lookup, or type Exit to exit: ')
 
     exit_words = ['exit', 'x', 'close', 'bye', 'end']
@@ -40,7 +44,7 @@ def user_search():  # will need to adapt to allow input of time as well?? implem
 
     try:
         search_id = int(search_id)
-        item = hash_instance_packages.search(search_id)
+        item = packages_hash.search(search_id)
         if item is not None:
             print(item)
             user_search()
@@ -52,7 +56,7 @@ def user_search():  # will need to adapt to allow input of time as well?? implem
         user_search()
 
 
-def load_items(input_data, header_lines):
+def load_packages(input_data, header_lines):  # Move to it's own controller file??
     with open(input_data) as items:
         data = csv.reader(items, delimiter=',')
 
@@ -75,11 +79,11 @@ def load_items(input_data, header_lines):
             # create item object
             new_item = Package(new_id, new_address, new_city, new_state, new_zip, new_deadline, new_mass, new_notes)
 
-            hash_instance_packages.insert(new_item, new_id)
+            packages_hash.insert(new_item, new_id)
             # print(hash_instance_packages.search(new_id))
 
 
-def load_destinations(input_data, header_lines):
+def load_destinations(input_data, header_lines):  # Move to own controller file??
     with open(input_data) as places:
         data = csv.reader(places, delimiter=',')
         num_col = len(next(data))  # count number of columns in the csv file
@@ -122,22 +126,43 @@ def load_destinations(input_data, header_lines):
 
 # TODO first implement nearest neighbor, then 2-opt swaps, then multiple trucks w/ req
 def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm
-    package_list = []  # Make a queue? Faster then list for our needs? Prob not???????
+    first_route = greedy_algorithm(num_packages)  # Move optimization algos to their own optimization controller file??
+    package_list = two_opt(first_route)
+    route = 1
+    truck = None
+    for i in range(0, num_of_trucks):  # TODO needs rework for when using more than 1 truck.
+        truck = Truck(i+1, package_list, '8:00', route)
+    return truck
+
+
+def greedy_algorithm(num_packages):  # TODO possibly take out and just use random/original order as first tour,
+    #                                       depending on how efficient either method is in comparison.
     unvisited_locations = []
-    for i in range(1, num_packages+1):  # add all packages to unvisited_locations list
+    package_list = []
+    for i in range(1, num_packages + 1):  # add all packages to unvisited_locations list
         unvisited_locations.append(i)
 
     start = ' HUB'
     current_location = graph_instance.get_vertex(start)
+    vertex_list = [current_location]
+    tour_distance = 0.0
+    # TODO for optimizing using req.s: after truck lists are set, if the truck has any packages req to be after 9:00
+    #   or a specific time, hold the truck until after that time. That way the packages can be sent out in the most
+    #   optimized way possible, while still being after the specified time?
 
+    # TODO when implementing 2-opt swaps: First save the tour using vertices in a list, not the packages,
+    #   Do the swaps until optimized, then convert the tour into the optimize-ordered package list for each truck.
+    #   For swaps: must not swap tour[0] -> being the HUB.
+    #   Will need to also add distance calculator in this method, not just saved to trucks.
     # Less than O(N^2) time? b/c list is decreasing w/ each iteration... ask StackOverflow?
     while unvisited_locations:  # While unvisited_locations list is not empty:
-        closest_package = hash_instance_packages.search(unvisited_locations[0])
+        closest_package = packages_hash.search(unvisited_locations[0])  # Initialize with first package on list
         closest_neighbor = graph_instance.get_vertex(closest_package.get_address())
-        for i in range(1, num_packages+1):
+        closest_neighbor_distance = 0.0
+        for i in range(1, num_packages + 1):
             if i not in unvisited_locations:
                 continue
-            package = hash_instance_packages.search(i)
+            package = packages_hash.search(i)
             package_location = graph_instance.get_vertex(package.get_address())
 
             # if package_location == current_location:  # not sure if i need this???????????????????
@@ -150,18 +175,35 @@ def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm
                 closest_neighbor = package_location
                 closest_package = package
 
+        tour_distance += closest_neighbor_distance
         current_location = closest_neighbor
+        vertex_list.append(closest_neighbor)
         package_list.append(closest_package)
+        print(tour_distance)
+        print(current_location, closest_neighbor)
+        print(closest_package)
+        print()
 
         unvisited_locations.remove(closest_package.id_)
     # TODO After packages added to list, truck needs to return home (last vertex needs edge to HUB)
     #   Add into the deliver() method?
-    # return_to_hub = graph_instance.get_vertex(start)
-    route = 1
-    truck = None
-    for i in range(0, num_of_trucks):  # TODO needs rework for when using more than 1 truck.
-        truck = Truck(i+1, package_list, '8:00', route)
-    return truck
+
+    vertex_list.append(graph_instance.get_vertex(start))  # truck returns to HUB at EOD
+    tour_distance += (graph_instance.get_distance(vertex_list[-2], vertex_list[-1]))  # add distance back to hub
+    # print(tour_distance)
+    return vertex_list, package_list
+
+
+def two_opt(input_lists):  # TODO whenever swapping indices in vertex_list, must also swap same indices in package_list.
+    #                             remember vertex_list > package_list by 2, because hub is at beginning and end!
+    vertex_list = input_lists[0]
+    package_list = input_lists[1]
+    print(len(vertex_list))
+    print(len(package_list))
+    for i in range(len(vertex_list)):
+        # print(input_lists[0][i])
+        pass
+    return package_list
 
 
 def deliver(loaded_truck):
@@ -182,6 +224,7 @@ def deliver(loaded_truck):
         packages_delivered += 1
     print(loaded_truck.miles_traveled)
     print(packages_delivered)
+    print(loaded_truck.time)
 
 
 def time_string_forward(current_time, travel_time):
@@ -205,16 +248,18 @@ data_path = Path("data/WGUPS Package File.csv")
 data_path_destination = Path("data/WGUPS Distance Table.csv")
 
 # initialize the ChainingHashTable instance
-hash_instance_packages = controller.hashing_with_chaining.ChainingHashTable()
+packages_hash = controller.hashing_with_chaining.ChainingHashTable()
 # initialize the Graph instance
 graph_instance = controller.graph.Graph()
 
 # second argument = the number of header lines to skip in the csv file before processing the data.
-load_items(data_path, 8)
+load_packages(data_path, 8)
 load_destinations(data_path_destination, 8)
 
 # user_search()
 
-trucks = load_trucks(1, 40)
+trucks = load_trucks(1, 40)  # TODO each truck only holds 16 packages, 2 drivers. so one driver will need to return to
+#                                   hub to change trucks (or reload with remaining packages, doesn't need to change
+#                                   trucks necessarily, b/c load times are instantaneous.
 
 deliver(trucks)

@@ -1,6 +1,6 @@
 import csv
-from model.item_to_deliver import Package
-import controller.QuadraticProbingHash
+from model.package import Package
+import controller.quadratic_probing_hash
 
 
 def load_items(input_data, header_lines):
