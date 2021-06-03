@@ -3,10 +3,11 @@ import csv
 from model.package import Package
 from model.destination import Destination
 from model.truck import Truck
-from controller.deliver import deliver
+# from controller.deliver import deliver
 import model.destination
 import controller.hashing_with_chaining
 import controller.graph
+from datetime import time, timedelta
 # it might be better to use hashing with chaining rather than open-addressing... depends how pythons hash() works
 #   and how the data is imported and hashed out (like what key is used??)
 # from controller.load_item_data import load_items
@@ -24,7 +25,7 @@ import controller.graph
 #   https://youtu.be/v5kaDxG5w30?t=588 also this at this time
 #   might want to change hash function to a different type, maybe reference textbook. save optimization like this
 #       for after the functionality is complete.
-from datetime import datetime, time, timedelta  # TODO okayy maybe don't use a time format and just % it myself?
+from datetime import datetime, time, date, timedelta  # TODO okayy maybe don't use a time format and just % it myself?
 from pathlib import Path
 # from operator import attrgetter  -> this is for getting the attribute. can get attribute of a list of model and
 #       sort by the specific attribute (like distance from hub etc)??
@@ -35,6 +36,11 @@ def user_search():  # will need to adapt to allow input of time as well?? implem
 
     #   after calculating routes, user enters specified time and recalculate package/truck positions and times to show
     #       store end_time for after all trucks finish their route? use this if they specify later time, return complete
+
+    # From Reddit: Implement a way, given a time and/or a package id
+    # default being all packages, to meet the checkpoint screenshot requirements)
+
+    # Input asks for either HH:MM am/pm or 24hr clock???? would just have to check and parse.
     search_id = input('Enter the package ID for lookup, or type Exit to exit: ')
 
     exit_words = ['exit', 'x', 'close', 'bye', 'end']
@@ -56,7 +62,8 @@ def user_search():  # will need to adapt to allow input of time as well?? implem
         user_search()
 
 
-def load_packages(input_data, header_lines):  # Move to it's own controller file??
+def load_package_data(input_data, header_lines):  # Move to it's own controller file??
+    """Parses the csv file and stores the package data in a hash data structure using hashing with chaining."""
     with open(input_data) as items:
         data = csv.reader(items, delimiter=',')
 
@@ -69,7 +76,11 @@ def load_packages(input_data, header_lines):  # Move to it's own controller file
             new_city = item[2]
             new_state = item[3]
             new_zip = item[4]
-            new_deadline = item[5]
+            if item[5] == 'EOD':  # EOD chosen as 5pm
+                new_deadline = datetime.now().replace(hour=17, minute=0, second=0, microsecond=0)
+            else:  # parse into datetime time
+                new_time = datetime.strptime(item[5], "%I:%M %p").time()
+                new_deadline = datetime.combine(date.today(), new_time)
             new_mass = item[6]
             if item[7] == '':
                 new_notes = None
@@ -78,12 +89,14 @@ def load_packages(input_data, header_lines):  # Move to it's own controller file
 
             # create item object
             new_item = Package(new_id, new_address, new_city, new_state, new_zip, new_deadline, new_mass, new_notes)
+            # print(new_item)
 
             packages_hash.insert(new_item, new_id)
             # print(hash_instance_packages.search(new_id))
 
 
-def load_destinations(input_data, header_lines):  # Move to own controller file??
+def load_destination_data(input_data, header_lines):  # Move to own controller file??
+    """Parses the csv file and stores the destination data in a graph data structure."""
     with open(input_data) as places:
         data = csv.reader(places, delimiter=',')
         num_col = len(next(data))  # count number of columns in the csv file
@@ -124,22 +137,49 @@ def load_destinations(input_data, header_lines):  # Move to own controller file?
             index_counter += 1
 
 
-# TODO first implement nearest neighbor, then 2-opt swaps, then multiple trucks w/ req
-def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm
-    first_route = greedy_algorithm(num_packages)  # Move optimization algos to their own optimization controller file??
-    package_list = two_opt(first_route)
+# Steps to write the algo and set everything up:
+# TODO first implement req following w/ greedy, then 2-opt swaps, then multiple trucks, then annealing??
+# Move optimization algos to their own optimization controller file?? maybe just make main.py have create_trucks and
+# user interface methods and that's it? everything else in another file, separated as needed
+def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm TODO make each truck have <= 16 packages
+    first_routes = nearest_neighbor(num_packages)  # List may only have a max index of 15, then check for times? & org.
+    package_list = two_opt(first_routes)
+    delayed_packages = []
+    delayed_time = None
     route = 1
     truck = None
     for i in range(0, num_of_trucks):  # TODO needs rework for when using more than 1 truck.
-        truck = Truck(i+1, package_list, '8:00', route)
+        start_time = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
+        truck = Truck(i+1, package_list, start_time, route)
     return truck
 
 
-def greedy_algorithm(num_packages):  # TODO possibly take out and just use random/original order as first tour,
+# If route is routes[1], then time leaving hub is 9:05...
+# Create list of delayed packages, if one is in the route, then route cannot leave until 9:05.
+# make sure truck 2 specified packages are always on package 2 and cannot leave.
+# then rearrange vertices to make their deadline. Check all packages in route against their deadline to see if correct.
+def unoptimized_tour(num_packages):  # Creates pre-optimized route by placing all packages in list in order given.
+    package_list = []
+
+    start = ' HUB'
+    start_location = graph_instance.get_vertex(start)
+
+    vertex_list = [start_location]
+
+    for i in range(1, num_packages+1):
+        package_list.append(packages_hash.search(i))
+        vertex_list.append(graph_instance.get_vertex(i))
+
+    vertex_list.append(start_location)  # Return to hub
+
+    return vertex_list, package_list
+
+
+def nearest_neighbor(num_packages):  # TODO possibly take out and just use random/original order as first tour,
     #                                       depending on how efficient either method is in comparison.
     unvisited_locations = []
     package_list = []
-    for i in range(1, num_packages + 1):  # add all packages to unvisited_locations list
+    for i in range(1, num_packages+1):  # add all packages to unvisited_locations list
         unvisited_locations.append(i)
 
     start = ' HUB'
@@ -179,14 +219,12 @@ def greedy_algorithm(num_packages):  # TODO possibly take out and just use rando
         current_location = closest_neighbor
         vertex_list.append(closest_neighbor)
         package_list.append(closest_package)
-        print(tour_distance)
-        print(current_location, closest_neighbor)
-        print(closest_package)
-        print()
+        # print(tour_distance)
+        # print(current_location, closest_neighbor)
+        # print(closest_package)
+        # print()
 
         unvisited_locations.remove(closest_package.id_)
-    # TODO After packages added to list, truck needs to return home (last vertex needs edge to HUB)
-    #   Add into the deliver() method?
 
     vertex_list.append(graph_instance.get_vertex(start))  # truck returns to HUB at EOD
     tour_distance += (graph_instance.get_distance(vertex_list[-2], vertex_list[-1]))  # add distance back to hub
@@ -198,23 +236,34 @@ def two_opt(input_lists):  # TODO whenever swapping indices in vertex_list, must
     #                             remember vertex_list > package_list by 2, because hub is at beginning and end!
     vertex_list = input_lists[0]
     package_list = input_lists[1]
-    print(len(vertex_list))
-    print(len(package_list))
+    # print(len(vertex_list))
+    # print(len(package_list))
     for i in range(len(vertex_list)):
         # print(input_lists[0][i])
         pass
     return package_list
 
 
-def deliver(loaded_truck):
+def simulated_annealing(input_list):
+    pass
+
+
+def deliver(loaded_truck):  # TODO truck still needs to return to hub after all packages are delivered.
     packages_delivered = 0
     for package in loaded_truck.packages:
         current_location = graph_instance.get_vertex(loaded_truck.location)
         next_location = graph_instance.get_vertex(package.get_address())
 
         distance = graph_instance.get_distance(current_location, next_location)  # in miles
+        seconds_taken = int(distance // (loaded_truck.speed / 3600))
         minutes_taken = int(distance // (loaded_truck.speed / 60))
-        loaded_truck.time = time_string_forward(loaded_truck.time, minutes_taken)
+
+        loaded_truck.time += timedelta(seconds=seconds_taken)
+        # print()
+        # print(distance)
+        # print(seconds_taken)
+        # print(minutes_taken)
+        # loaded_truck.time = time_string_forward(loaded_truck.time, minutes_taken)
 
         loaded_truck.miles_traveled += distance
 
@@ -222,25 +271,20 @@ def deliver(loaded_truck):
         loaded_truck.location = package.get_address()
 
         packages_delivered += 1
+    #  Next 7 lines used just for returning to hub.. matches a lot of other lines. TODO Make separate function??
+    start = ' HUB'
+    hub = graph_instance.get_vertex(start)
+    distance = graph_instance.get_distance(graph_instance.get_vertex(loaded_truck.location), hub)
+    minutes_taken = int(distance // (loaded_truck.speed / 60))
+
+    # loaded_truck.time = time_string_forward(loaded_truck.time, minutes_taken)
+
+    loaded_truck.miles_traveled += distance
+    loaded_truck.location = start
+    # return_to_hub =
     print(loaded_truck.miles_traveled)
     print(packages_delivered)
     print(loaded_truck.time)
-
-
-def time_string_forward(current_time, travel_time):
-    split_time = [int(n) for n in current_time.split(":")]
-
-    # add time to minutes
-    split_time[1] = split_time[1] + travel_time
-    # if minutes > 60, add required hours
-    split_time[0] = split_time[0] + (split_time[1] // 60)
-    # format minutes
-    split_time[1] = split_time[1] % 60
-
-    if split_time[1] // 10 < 1:  # If minutes is single digit, add a preceding 0 for correct format.
-        return '%s:0%s' % (split_time[0], split_time[1])
-    else:
-        return '%s:%s' % (split_time[0], split_time[1])
 
 
 # paths to the csv files
@@ -253,8 +297,8 @@ packages_hash = controller.hashing_with_chaining.ChainingHashTable()
 graph_instance = controller.graph.Graph()
 
 # second argument = the number of header lines to skip in the csv file before processing the data.
-load_packages(data_path, 8)
-load_destinations(data_path_destination, 8)
+load_package_data(data_path, 8)
+load_destination_data(data_path_destination, 8)
 
 # user_search()
 

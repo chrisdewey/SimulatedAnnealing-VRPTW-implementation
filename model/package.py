@@ -5,7 +5,7 @@ class Package:
         self.city = city
         self.state = state
         self.zip_ = zip_
-        self.deadline = deadline  # EOD = End of Day
+        self.deadline = deadline  # EOD = End of Day, i can make it like... 5:00pm??
         self.mass = mass  # Weight given in KG
         self.notes = notes
         self.status = status  # All packages start 'at hub'
