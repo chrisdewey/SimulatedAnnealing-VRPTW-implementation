@@ -11,26 +11,23 @@ class Vertex:
 
 class Graph:
     def __init__(self):
-        # self.adjacency_list = {}  # TODO might not need this!! delete? b/c it will always be a complete graph??
         self.edge_weights = ChainingHashTable()
-        self.vertex_list = []  # new
+        self.vertex_hash = ChainingHashTable()
+        self.vertex_key_list = []  # Vertex keys are their addresses.
 
-    def add_vertex(self, new_vertex):
-        # self.adjacency_list[new_vertex] = []
-        self.vertex_list.append(new_vertex)  # new
+    def add_vertex(self, new_vertex, address):
+        self.vertex_hash.insert(new_vertex, address)  # new
+        self.vertex_key_list.append(address)
 
     def add_directed_edge(self, from_vertex, to_vertex, weight=1.0):
         self.edge_weights.insert(weight, (from_vertex, to_vertex))
-        # self.adjacency_list[from_vertex].append(to_vertex)
 
     def add_undirected_edge(self, vertex_a, vertex_b, weight=1.0):
         self.add_directed_edge(vertex_a, vertex_b, weight)
         self.add_directed_edge(vertex_b, vertex_a, weight)
 
     def get_vertex(self, address):
-        for vertex in self.vertex_list:
-            if vertex.label == address:
-                return vertex
+        return self.vertex_hash.search(address)
 
     def get_distance(self, current_vertex, next_vertex):
         return self.edge_weights.search((current_vertex, next_vertex))

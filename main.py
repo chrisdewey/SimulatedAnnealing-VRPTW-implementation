@@ -7,7 +7,7 @@ from model.truck import Truck
 import model.destination
 import controller.hashing_with_chaining
 import controller.graph
-from datetime import time, timedelta
+from math import ceil
 # it might be better to use hashing with chaining rather than open-addressing... depends how pythons hash() works
 #   and how the data is imported and hashed out (like what key is used??)
 # from controller.load_item_data import load_items
@@ -25,7 +25,7 @@ from datetime import time, timedelta
 #   https://youtu.be/v5kaDxG5w30?t=588 also this at this time
 #   might want to change hash function to a different type, maybe reference textbook. save optimization like this
 #       for after the functionality is complete.
-from datetime import datetime, time, date, timedelta  # TODO okayy maybe don't use a time format and just % it myself?
+from datetime import datetime, date, timedelta  # TODO okayy maybe don't use a time format and just % it myself?
 from pathlib import Path
 # from operator import attrgetter  -> this is for getting the attribute. can get attribute of a list of model and
 #       sort by the specific attribute (like distance from hub etc)??
@@ -107,7 +107,7 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
         for place in data:  # Add all vertices to the graph.
             address = place[1]
             vertex = controller.graph.Vertex(address)
-            graph_instance.add_vertex(vertex)
+            graph_instance.add_vertex(vertex, address)
             # print(vertex)
 
         places.seek(0)  # Return csv reader back to start of file.
@@ -120,17 +120,11 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
             address = place[1]
             i = 2
             while place[i] != '' and i < num_col-1:
-                # print(graph_instance.adjacency_list[address])
                 if place[i] != '':
-                    # vertex_a = keys_list[index_counter]
-                    # vertex_b = keys_list[i-2]
-                    vertex_a = graph_instance.vertex_list[index_counter]
-                    vertex_b = graph_instance.vertex_list[i-2]
+                    vertex_a = graph_instance.get_vertex(graph_instance.vertex_key_list[index_counter])
+                    vertex_b = graph_instance.get_vertex(graph_instance.vertex_key_list[i - 2])
                     distance = float(place[i])
                     graph_instance.add_undirected_edge(vertex_a, vertex_b, distance)
-                    # with add_undirected_edge it gives 28 members to each vertex, with directed, it gives 1 then 2
-                    #   then 3 etc.. also the last vertex is missing its last connection, b/c there's an index out of
-                    #   bounds error stemming from num_col-1 i believe...
 
                 i += 1
 
@@ -142,7 +136,7 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
 # Move optimization algos to their own optimization controller file?? maybe just make main.py have create_trucks and
 # user interface methods and that's it? everything else in another file, separated as needed
 def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm TODO make each truck have <= 16 packages
-    first_routes = nearest_neighbor(num_packages)  # List may only have a max index of 15, then check for times? & org.
+    first_routes = unoptimized_tour(num_packages)
     package_list = two_opt(first_routes)
     delayed_packages = []
     delayed_time = None
@@ -150,25 +144,29 @@ def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm TODO
     truck = None
     for i in range(0, num_of_trucks):  # TODO needs rework for when using more than 1 truck.
         start_time = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-        truck = Truck(i+1, package_list, start_time, route)
+        truck = Truck(i+1, package_list[i], start_time, route)
     return truck
 
 
-# If route is routes[1], then time leaving hub is 9:05...
+# If route is routes[1], then time leaving hub is 9:05... and routes[2] leaves after routes[0]??
 # Create list of delayed packages, if one is in the route, then route cannot leave until 9:05.
 # make sure truck 2 specified packages are always on package 2 and cannot leave.
 # then rearrange vertices to make their deadline. Check all packages in route against their deadline to see if correct.
 def unoptimized_tour(num_packages):  # Creates pre-optimized route by placing all packages in list in order given.
-    package_list = []
-
     start = ' HUB'
     start_location = graph_instance.get_vertex(start)
+    num_routes = ceil(num_packages / 16)
+    package_list = [[] for _ in range(num_routes)]
+    vertex_list = [[start_location] for _ in range(num_routes)]
 
-    vertex_list = [start_location]
-
-    for i in range(1, num_packages+1):
-        package_list.append(packages_hash.search(i))
-        vertex_list.append(graph_instance.get_vertex(i))
+    for i in range(0, num_routes):  # Create specified number of package_list lists
+        for j in range(i*15, (i*15)+15):  # Each truck can only hold 16 packages. Add <= 16 packages to each list.
+            if j <= num_packages-1:  # When total # of packages is exhausted, break from loop.
+                package_list[i].append(packages_hash.search(j+1))
+                vertex_list[i].append(graph_instance.get_vertex(j+1))
+            else:
+                break
+        print(len(package_list[i]))
 
     vertex_list.append(start_location)  # Return to hub
 
@@ -302,7 +300,7 @@ load_destination_data(data_path_destination, 8)
 
 # user_search()
 
-trucks = load_trucks(1, 40)  # TODO each truck only holds 16 packages, 2 drivers. so one driver will need to return to
+trucks = load_trucks(3, 40)  # TODO each truck only holds 16 packages, 2 drivers. so one driver will need to return to
 #                                   hub to change trucks (or reload with remaining packages, doesn't need to change
 #                                   trucks necessarily, b/c load times are instantaneous.
 
