@@ -8,6 +8,7 @@ import model.destination
 import controller.hashing_with_chaining
 import controller.graph
 from math import ceil
+import random
 # it might be better to use hashing with chaining rather than open-addressing... depends how pythons hash() works
 #   and how the data is imported and hashed out (like what key is used??)
 # from controller.load_item_data import load_items
@@ -136,8 +137,10 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
 # Move optimization algos to their own optimization controller file?? maybe just make main.py have create_trucks and
 # user interface methods and that's it? everything else in another file, separated as needed
 def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm TODO make each truck have <= 16 packages
-    first_routes = unoptimized_tour(num_packages)
-    package_list = two_opt(first_routes)
+    # TODO change to just create_trucks() or something and pass the created and optimized lists into this.
+    #       create a create_route() method to call before that will return the optimized list and pass that into here.
+    first_routes = unoptimized_route(num_packages)
+    package_list = two_opt(first_routes)  # TODO after testing for two_opts change to simulated annealing and test vars.
     delayed_packages = []
     delayed_time = None
     route = 1
@@ -152,7 +155,7 @@ def load_trucks(num_of_trucks, num_packages):  # Nearest Neighbor Algorithm TODO
 # Create list of delayed packages, if one is in the route, then route cannot leave until 9:05.
 # make sure truck 2 specified packages are always on package 2 and cannot leave.
 # then rearrange vertices to make their deadline. Check all packages in route against their deadline to see if correct.
-def unoptimized_tour(num_packages):  # Creates pre-optimized route by placing all packages in list in order given.
+def unoptimized_route(num_packages):  # Creates pre-optimized route by placing all packages in list in order given.
     start = ' HUB'
     start_location = graph_instance.get_vertex(start)
     num_routes = ceil(num_packages / 16)
@@ -162,99 +165,78 @@ def unoptimized_tour(num_packages):  # Creates pre-optimized route by placing al
     for i in range(0, num_routes):  # Create specified number of package_list lists
         for j in range(i*15, (i*15)+15):  # Each truck can only hold 16 packages. Add <= 16 packages to each list.
             if j <= num_packages-1:  # When total # of packages is exhausted, break from loop.
-                package_list[i].append(packages_hash.search(j+1))
+                package_list[i].append(j+1)
+                # destination_vertex = None  # If using this, need to get vertex by searching from packages address.
                 vertex_list[i].append(graph_instance.get_vertex(j+1))
             else:
                 break
         print(len(package_list[i]))
 
-    vertex_list.append(start_location)  # Return to hub
+    for sublist in vertex_list:  # Return to hub
+        sublist.append(start_location)
 
-    return vertex_list, package_list
-
-
-def nearest_neighbor(num_packages):  # TODO possibly take out and just use random/original order as first tour,
-    #                                       depending on how efficient either method is in comparison.
-    unvisited_locations = []
-    package_list = []
-    for i in range(1, num_packages+1):  # add all packages to unvisited_locations list
-        unvisited_locations.append(i)
-
-    start = ' HUB'
-    current_location = graph_instance.get_vertex(start)
-    vertex_list = [current_location]
-    tour_distance = 0.0
-    # TODO for optimizing using req.s: after truck lists are set, if the truck has any packages req to be after 9:00
-    #   or a specific time, hold the truck until after that time. That way the packages can be sent out in the most
-    #   optimized way possible, while still being after the specified time?
-
-    # TODO when implementing 2-opt swaps: First save the tour using vertices in a list, not the packages,
-    #   Do the swaps until optimized, then convert the tour into the optimize-ordered package list for each truck.
-    #   For swaps: must not swap tour[0] -> being the HUB.
-    #   Will need to also add distance calculator in this method, not just saved to trucks.
-    # Less than O(N^2) time? b/c list is decreasing w/ each iteration... ask StackOverflow?
-    while unvisited_locations:  # While unvisited_locations list is not empty:
-        closest_package = packages_hash.search(unvisited_locations[0])  # Initialize with first package on list
-        closest_neighbor = graph_instance.get_vertex(closest_package.get_address())
-        closest_neighbor_distance = 0.0
-        for i in range(1, num_packages + 1):
-            if i not in unvisited_locations:
-                continue
-            package = packages_hash.search(i)
-            package_location = graph_instance.get_vertex(package.get_address())
-
-            # if package_location == current_location:  # not sure if i need this???????????????????
-            #   break
-
-            package_distance = graph_instance.get_distance(current_location, package_location)
-            closest_neighbor_distance = graph_instance.get_distance(current_location, closest_neighbor)
-
-            if package_distance < closest_neighbor_distance:
-                closest_neighbor = package_location
-                closest_package = package
-
-        tour_distance += closest_neighbor_distance
-        current_location = closest_neighbor
-        vertex_list.append(closest_neighbor)
-        package_list.append(closest_package)
-        # print(tour_distance)
-        # print(current_location, closest_neighbor)
-        # print(closest_package)
-        # print()
-
-        unvisited_locations.remove(closest_package.id_)
-
-    vertex_list.append(graph_instance.get_vertex(start))  # truck returns to HUB at EOD
-    tour_distance += (graph_instance.get_distance(vertex_list[-2], vertex_list[-1]))  # add distance back to hub
-    # print(tour_distance)
     return vertex_list, package_list
 
 
 def two_opt(input_lists):  # TODO whenever swapping indices in vertex_list, must also swap same indices in package_list.
     #                             remember vertex_list > package_list by 2, because hub is at beginning and end!
-    vertex_list = input_lists[0]
+    vertex_list = input_lists[0]  # TODO do i even need this??????????????????????????????????????
     package_list = input_lists[1]
     # print(len(vertex_list))
     # print(len(package_list))
-    for i in range(len(vertex_list)):
-        # print(input_lists[0][i])
-        pass
+
+    # for i in range(len(vertex_list)):
+    #     print(input_lists[0][i])
+    #     pass
     return package_list
 
 
-def simulated_annealing(input_list):
-    pass
+def simulate_annealing(initial_route):
+    route = initial_route  # lol okay.
+    temp = .8  # Initial Temperature set to 80°
+    target_temp = .01
+    cooling_factor = 0.995
+
+    inner_itr = 6000  # variable for num of iterations for exploiting local search area Paper sets this as 6000,overkill
+    k = 25  # variable for calculating acceptance probability TODO might not need k! test different variables for best
+
+    while temp > target_temp:
+        for i in range(inner_itr):
+            # Total distance of route
+            d1 = route.get_distance  # ?
+
+            # Produce neighbor of route as a new solution
+            new_route = two_opt(route)
+
+            # Total distance of new_route
+            d2 = new_route.get_distance
+
+            # probability formula. Initially, high probability of accepting wrong solutions. As temp decreases,
+            #   the probability will decrease and tend toward 0 for worse routes. The algorithm will move
+            #   deterministically, only accepting better solutions.
+            # source: https://stats.stackexchange.com/questions/453309/what-is-the-relationship-between-metropolis-hastings-and-simulated-annealing
+            probability = exp(- ((d2-d1) * k) / (d1 * temp))
+
+            if d2 < d1:
+                route = new_route
+            elif d2 >= d1 and random() < probability:  # if new_route is worse, accept change with probability
+                route = new_route
+
+            temp = temp * cooling_factor
+
+    return route
 
 
 def deliver(loaded_truck):  # TODO truck still needs to return to hub after all packages are delivered.
     packages_delivered = 0
-    for package in loaded_truck.packages:
+    for package_id in loaded_truck.package_list:
+        package = packages_hash.search(package_id)
         current_location = graph_instance.get_vertex(loaded_truck.location)
         next_location = graph_instance.get_vertex(package.get_address())
 
         distance = graph_instance.get_distance(current_location, next_location)  # in miles
         seconds_taken = int(distance // (loaded_truck.speed / 3600))
-        minutes_taken = int(distance // (loaded_truck.speed / 60))
+        # minutes_taken = int(distance // (loaded_truck.speed / 60))
 
         loaded_truck.time += timedelta(seconds=seconds_taken)
         # print()
@@ -305,3 +287,7 @@ trucks = load_trucks(3, 40)  # TODO each truck only holds 16 packages, 2 drivers
 #                                   trucks necessarily, b/c load times are instantaneous.
 
 deliver(trucks)
+
+from math import exp
+
+print(exp(- (20.0-5) / (40 * .80)))
