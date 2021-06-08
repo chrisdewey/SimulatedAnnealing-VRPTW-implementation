@@ -10,8 +10,8 @@ class Vertex:
 
 
 class Graph:
-    def __init__(self):
-        self.edge_weights = ChainingHashTable()
+    def __init__(self, num_edge_weights=100):
+        self.edge_weights = ChainingHashTable(num_edge_weights)
         self.vertex_hash = ChainingHashTable()
         self.vertex_key_list = []  # Vertex keys are their addresses.
 
