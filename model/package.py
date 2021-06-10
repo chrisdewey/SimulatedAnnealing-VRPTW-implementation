@@ -8,7 +8,7 @@ class Package:
         self.deadline = deadline  # EOD = End of Day, i can make it like... 5:00pm??
         self.mass = mass  # Weight given in KG
         self.notes = notes
-        self.status = status  # All packages start 'at hub'
+        self.status = status  # All packages start 'at hub' # TODO change to delivered_at? add another attrib??
 
     def __str__(self):  # used to overwrite print(package), else it prints the reference
         return "%s, %s, %s, %s, %s, %s, %s, %s, %s" %\
