@@ -9,11 +9,12 @@ class Package:
         self.mass = mass  # Weight given in KG
         self.notes = notes
         self.status = status  # All packages start 'at hub' # TODO change to delivered_at? add another attrib??
+        self.timestamp = None
 
     def __str__(self):  # used to overwrite print(package), else it prints the reference
-        return "%s, %s, %s, %s, %s, %s, %s, %s, %s" %\
+        return "%s, %s, %s, %s, %s, %s, %s, %s, %s, delivered at: %s" %\
                (self.id_, self.address, self.city, self.state,
-                self.zip_, self.deadline, self.mass, self.notes, self.status)
+                self.zip_, self.deadline, self.mass, self.notes, self.status, self.timestamp)
 
     def get_address(self):
         return ' ' + self.address + '\n' + '(' + self.zip_ + ')'
