@@ -1,10 +1,8 @@
 # TODO put name and student id before submitting
 import csv
 from model.package import Package
-from model.destination import Destination
 from model.truck import Truck
-# from controller.deliver import deliver
-import model.destination
+
 import controller.hashing_with_chaining
 import controller.graph
 from math import ceil, exp
@@ -27,10 +25,8 @@ from copy import deepcopy
 #   https://youtu.be/v5kaDxG5w30?t=588 also this at this time
 #   might want to change hash function to a different type, maybe reference textbook. save optimization like this
 #       for after the functionality is complete.
-from datetime import datetime, date, timedelta  # TODO okayy maybe don't use a time format and just % it myself?
+from datetime import datetime, date, timedelta
 from pathlib import Path
-# from operator import attrgetter  -> this is for getting the attribute. can get attribute of a list of model and
-#       sort by the specific attribute (like distance from hub etc)??
 
 
 def user_search():  # will need to adapt to allow input of time as well?? implement after figuring out algo i guess.
@@ -97,7 +93,7 @@ def load_package_data(input_data, header_lines):  # Move to it's own controller 
             # print(hash_instance_packages.search(new_id))
 
 
-def load_destination_data(input_data, header_lines):  # Move to own controller file?? TODO might not need header_lines??
+def load_destination_data(input_data, header_lines):  # Move to own controller file??
     """Parses the csv file and stores the destination data in a graph data structure."""
     with open(input_data) as places:
         data = csv.reader(places, delimiter=',')
@@ -136,15 +132,9 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
             index_counter += 1
 
 
-# Steps to write the algo and set everything up:
-# TODO first implement req following w/ greedy, then 2-opt swaps, then multiple trucks, then annealing??
-# Move optimization algos to their own optimization controller file?? maybe just make main.py have create_trucks and
-# user interface methods and that's it? everything else in another file, separated as needed
-def load_trucks(num_packages):  # Nearest Neighbor Algorithm TODO make each truck have <= 16 packages
-    # TODO change to just create_trucks() or something and pass the created and optimized lists into this.
-    #       create a create_route() method to call before that will return the optimized list and pass that into here.
+def load_trucks(num_packages):
     first_routes = unoptimized_route(num_packages)
-    package_list = simulated_annealing(first_routes)  # TODO after testing for two_opts change to simulated annealing and test vars.
+    package_list = simulated_annealing(first_routes)
     route = 1
     truck = []
     for i in range(0, 3):  # Create the 3 trucks and include the optimized package lists
@@ -153,13 +143,6 @@ def load_trucks(num_packages):  # Nearest Neighbor Algorithm TODO make each truc
     return truck
 
 
-# If route is routes[1], then time leaving hub is 9:05... and routes[2] leaves after routes[0]??
-# Create list of delayed packages, if one is in the route, then route cannot leave until 9:05.
-# make sure truck 2 specified packages are always on package 2 and cannot leave.
-# then rearrange vertices to make their deadline. Check all packages in route against their deadline to see if correct.
-# TODO Try this, w SA, then test vs trying w a random (just in order) route list before SA and swaps.
-# TODO so far this function is NOT completely accurate (places deadline packages out of order in some cases)
-# TODO or! put explicit req items in place, then don't worry about time windows until 2swapping?
 def unoptimized_route(num_packages):  # Creates un-optimized routes by placing all packages in list in order given.
     earliest_time = None
     package_id_list = []
@@ -215,104 +198,68 @@ def unoptimized_route(num_packages):  # Creates un-optimized routes by placing a
             if len(route_list[j]) < 16:
                 route_list[j].append(i)
                 break
-    # TODO perhaps implement req following in this first itr. Then optimize w/ annealing.
-    # start = ' HUB'
-    # start_location = graph_instance.get_vertex(start)
-    # num_routes = ceil(num_packages / 16)
-    # package_list = [[] for _ in range(num_routes)]
-    # vertex_list = [[start_location] for _ in range(num_routes)]
-    #
-    # for i in range(0, num_routes):  # Create specified number of package_list lists
-    #     for j in range(i*15, (i*15)+15):  # Each truck can only hold 16 packages. Add <= 16 packages to each list.
-    #         if j <= num_packages-1:  # When total # of packages is exhausted, break from loop.
-    #             package_list[i].append(j+1)
-    #             # destination_vertex = None  # If using this, need to get vertex by searching from packages address.
-    #             vertex_list[i].append(graph_instance.get_vertex(j+1))
-    #         else:
-    #             break
-    #     # print(len(package_list[i]))
-    #
-    # for sublist in vertex_list:  # Return to hub
-    #     sublist.append(start_location)
 
     return route_list
 
 
-def swap_two(routes_list, ra_num, rb_num, a, b):
-    new_routes = deepcopy(routes_list)
-    new_routes[ra_num][a], new_routes[rb_num][b] = new_routes[rb_num][b], new_routes[ra_num][a]
-    return new_routes
+def valid_move(routes_list, ra_num, rb_num, a, b):
+    is_valid = True
 
+    package_a = packages_hash.search(routes_list[ra_num][a])
+    package_b = packages_hash.search(routes_list[rb_num][b])
 
-def two_opt(input_lists):  # TODO whenever swapping indices in vertex_list, must also swap same indices in package_list.
-    #                             remember vertex_list > package_list by 2, because hub is at beginning and end!
-    routes = deepcopy(input_lists)
-    mileage = find_mileages(routes)
-    d1 = sum(mileage)
+    morning_time = datetime.strptime('9:30 am', "%I:%M %p").time()
+    morning = datetime.combine(date.today(), morning_time)
+    mid_day_time = datetime.strptime('11:00 am', "%I:%M %p").time()
+    mid_day = datetime.combine(date.today(), mid_day_time)
 
-    # new_routes = deepcopy(routes)
+    if package_a.notes.startswith('Can only be'):
+        if int(package_a.notes[-1]) != rb_num + 1:  # If package is swapped out of the required truck
+            is_valid = False
 
-    improve = 0
-    while improve < 1:
+    if package_b.notes.startswith('Can only be'):
+        if int(package_b.notes[-1]) != ra_num + 1:  # If package is swapped out of the required truck
+            is_valid = False
 
-        if random() < 5:
-            rn = randint(0, len(routes) - 1)
-            #rn = 0
+    if package_a.deadline < morning:  # Package w morning deadline must be on early leaving routes and near the front
+        if rb_num != 0:
+            is_valid = False
+        if b > 4:
+            is_valid = False
 
-            for i in range(0, len(routes[rn]) - 1):
+    if package_b.deadline < morning:  # Package w morning deadline must be on early leaving routes and near the front
+        if ra_num != 0:
+            is_valid = False
+        if a > 4:
+            is_valid = False
 
-                for k in range(i+1, len(routes[rn])):
+    if package_a.deadline < mid_day:
+        if rb_num > 1:  # Packages w deadlines must not be one last route
+            is_valid = False
+        if rb_num == 0 and b > 12:
+            is_valid = False
+        if rb_num == 1 and b > 6:
+            is_valid = False
 
-                    # new_routes[rn][i], new_routes[rn][k] = new_routes[rn][k], new_routes[rn][i]
+    if package_b.deadline < mid_day:
+        if ra_num > 1:  # Packages w deadlines must not be one last route
+            is_valid = False
+        if ra_num == 0 and a > 12:
+            is_valid = False
+        if ra_num == 1 and a > 6:
+            is_valid = False
 
-                    new_routes = swap_two(routes, rn, rn, i, k)
+    if package_a.notes.startswith('Must be'):  # Packages delivered together must stay on first route
+        if rb_num != 0:
+            is_valid = False
+    if package_b.notes.startswith('Must be'):  # Packages delivered together must stay on first route
+        if ra_num != 0:
+            is_valid = False
 
-                    new_mileage = update_distances(routes, rn, rn, i, k, mileage)
-                    # new_mileage = find_mileages(new_routes)
-                    print()
-                    print('old d')
-                    print(d1)
-                    print('new d')
-                    d2 = sum(new_mileage)
-                    print(d2)
-                    if d2 < d1:
-                        print('         accepted')
-                        routes = new_routes
-                        mileage = new_mileage
-                        print(routes)
-                        print(sum(find_mileages(routes)))
-                        print()
-
-                        d1 = d2
-                        improve = 0
-
-        else:
-            ra_num = randint(0, len(routes) - 1)  # Random route a, by index
-            rb_num = choice([x for x in range(len(routes) - 1) if x != ra_num])  # Route b, must differ from ra_num
-
-            for i in range(0, len(routes[ra_num]) - 1):
-
-                for k in range(i + 1, len(routes[rb_num])):
-
-                    # new_routes[ra_num][i], new_routes[rb_num][k] = new_routes[rb_num][k], new_routes[ra_num][i]
-                    new_routes = swap_two(routes, ra_num, rb_num, i, k)
-
-                    new_mileage = update_distances(routes, ra_num, rb_num, i, k, mileage)
-                    d2 = sum(new_mileage)
-                    if d2 < d1:
-                        routes = new_routes
-                        print(routes)
-                        mileage = new_mileage
-                        d1 = d2
-                        improve = 0
-        improve += 1
-    # print(len(vertex_list))
-    # print(len(package_list))
-    return routes
+    return is_valid
 
 
 def create_new_route(routes_list, distances):
-    # TODO this uses SWAPS, try it then test using method w only single element moves
     """
     Swaps a 2 elements within a route, or swaps two elements in separate routes with a 50% chance.
     Requires O(2N) Space  # Worded correctly???????????????
@@ -323,51 +270,51 @@ def create_new_route(routes_list, distances):
              new_distances the list of distances of the new_routes list
     """
     new_routes = deepcopy(routes_list)  # Copy of the routes_list
-    # new_distances = distances.copy()
+    new_distances = distances.copy()
 
     if random() < .5:  # Swap 2 elements within the same list. 50% chance
-        rn = randint(0, len(new_routes) - 1)  # TODO do i need the -1 on all these??
+        rn = randint(0, len(new_routes) - 1)
 
         a = randint(0, len(new_routes[rn]) - 1)  # random element from the list by index
         b = choice([i for i in range(len(new_routes[rn]) - 1) if i != a])  # random element must differ from a
 
-        # Swap the two elements
-        new_routes[rn][a], new_routes[rn][b] = new_routes[rn][b], new_routes[rn][a]
+        if valid_move(new_routes, rn, rn, a, b):
+            # Swap the two elements
+            new_routes[rn][a], new_routes[rn][b] = new_routes[rn][b], new_routes[rn][a]
 
-        # Calculate new distance
-        new_distances = update_distances(routes_list, rn, rn, a, b, distances)
-    else:  # Swap 2 elements from different lists. 50% chance TODO BROKEN!!!!! FIX THIS FIRST i don't think it's switching like it should!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # TODO also try a greedy algo first before attempting SA. (just do if < 16 packages, next package = closest.)
+            # Calculate new distance
+            new_distances = update_distances(routes_list, rn, rn, a, b, distances)
+
+    else:  # Swap 2 elements from different lists. 50% chance
         ra_num = randint(0, len(new_routes) - 1)  # Random route a, by index
         rb_num = choice([i for i in range(len(new_routes)-1) if i != ra_num])  # Random route b, must differ from ra_num
 
         a = randint(0, len(new_routes[ra_num]) - 1)  # random element from ra_num route list, by index
         b = randint(0, len(new_routes[rb_num]) - 1)  # random element from rb_num route list, by index
 
-        # Swap the two elements
-        new_routes[ra_num][a], new_routes[rb_num][b] = new_routes[rb_num][b], new_routes[ra_num][a]
+        if valid_move(new_routes, ra_num, rb_num, a, b):
+            # Swap the two elements
+            new_routes[ra_num][a], new_routes[rb_num][b] = new_routes[rb_num][b], new_routes[ra_num][a]
 
-        # Calculate new distance
-        new_distances = update_distances(routes_list, ra_num, rb_num, a, b, distances)
+            # Calculate new distance
+            new_distances = update_distances(routes_list, ra_num, rb_num, a, b, distances)
 
-    # TODO maybe change next 2 lines and have SA just move onto it's next itr and return back the original list if False
-    # if new_routes is not is_valid(new_routes):  # If the new_route is not valid, go back and make another random move.
-    #     new_routes = create_new_route(routes_list, distances)
     return new_routes, new_distances
 
 
 def simulated_annealing(initial_route):
-    routes = initial_route  # List of the routes TODO make copy??
+    routes = initial_route  # List of the routes
     mileage = find_mileages(routes)  # Distances of each sub route in route
     d1 = sum(mileage)  # Total distance of route
 
-    temp = 70  # Initial Temperature set to 80° ?? y decimal and no just 80?? need to test vars!
-    target_temp = 0.5
-    cooling_factor = 0.95
+    temp = 240  # Initial Temperature set to 80° ?? y decimal and no just 80?? need to test vars!
+    target_temp = 0.05
+    cooling_factor = 0.995
 
-    inner_itr = 6000  # variable for num of iterations for exploiting local search area Paper sets this as 6000,overkill
-    k = 25  # variable for calculating acceptance probability TODO might not need k! test different variables for best
-    # k >= 1
+    inner_itr = 100  # variable for num of iterations for exploiting local search area Paper sets this as 6000,overkill
+    apple = 0
+    prob = 0.0
+
     while temp > target_temp:
         for i in range(inner_itr):
             neighbor = create_new_route(routes, mileage)
@@ -383,19 +330,14 @@ def simulated_annealing(initial_route):
 
             d2 = sum(new_mileage)  # Total distance of new_mileage
 
-            # TODO implement req checker on new_route. if not a valid route then have a var that stores that
-            #   and us that for calculation?? checking?? weights in the probability???
-            #   Perhaps use the same/similar method in the actual swapping process???
-
-            #   TODO also! for package 9, treat like delivery window after 10:20, cannot be delivered until then.
-
             # probability formula. Initially, high probability of accepting wrong solutions. As temp decreases,
             #   the probability will decrease and tend toward 0 for worse routes. The algorithm will move
             #   deterministically, only accepting better solutions.
             # source: https://stats.stackexchange.com/questions/453309/what-is-the-relationship-between-metropolis-hastings-and-simulated-annealing
             # TODO in comment here site source as wiki or a paper that has the formula, rather than a forum comment.
 
-            if d2 < d1:  # TODO add AND if d2 is acceptable, if it isn't then only accept if d1 is also not acceptable.
+            # if d2 = d1, then do nothing... TODO or would it be better to make last ELSE be accept, meaning accept if =
+            if d2 < d1:
                 routes = new_route.copy()
                 # print('less')
                 # print()
@@ -403,7 +345,7 @@ def simulated_annealing(initial_route):
                 # print()
                 # print('                                                       better')
             elif d2 > d1:  # if new_route is not better, accept change with probability
-                # probability = 1 / (exp(((d2 - d1) * k) / (d1 * temp)))  # TODO try catch w/ if it's math error than = 0?
+                # probability = 1 / (exp(((d2 - d1) * k) / (d1 * temp)))
                 try:
                     probability = 1 / (exp((d2 - d1) / temp))
                 except OverflowError:
@@ -412,40 +354,26 @@ def simulated_annealing(initial_route):
                 print(temp)
                 print('prob')
                 print(probability)
-
+                apple += 1
+                prob += probability
                 if random() < probability:
-                    # print('ACCEPTEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD')
                     routes = new_route.copy()
                     d1 = d2  # ??
 
+            else:
+                print('nothing happened')
+
         temp = temp * cooling_factor
-        # print(temp)
-    # print('routes= ')
-    # print(routes)
-    # print('count')
-    # print(count)
-    # print('bad')
-    # print(bad)
+    print('apple')
+    print(apple)
+    print('prob')
+    print(prob)
+    print('nothings')
 
     return routes
 
 
-def is_valid(route_lists):
-    valid = True
-    for i in range(0, len(route_lists)):
-        for k in route_lists[i]:
-            package = packages_hash.search(route_lists[i][k])
-            if package.deadline < package.status:  # TODO needs work
-                valid = False
-                break
-            if package.notes.startswith('Can only be'):
-                if package.notes[-1] != i+1:  # If the package is not on the correct route list (truck num - 1)
-                    valid = False
-                    break
-    return valid
-
-
-def find_mileages(package_lists):  # TODO might just need the total instead of list of each one??
+def find_mileages(package_lists):
     """
     FUNCTION: find_total_mileage
 
@@ -495,7 +423,7 @@ def update_distances(routes_list, route_a, route_b, element_a, element_b, distan
     :param distances:
     :return: The updated list of distances.
     """
-    new_d = distances.copy()  # TODO change so new_distances is calculation of distance_changes with distances.
+    new_d = distances.copy()
 
     package_a = packages_hash.search(routes_list[route_a][element_a])
     a = graph_instance.get_vertex(package_a.get_address())
@@ -579,12 +507,23 @@ def find_total_time(package_lists):
 def deliver(loaded_truck):
     packages_delivered = 0
     mileage = 0.0
-    for truck in loaded_truck:  # TODO change to a single truck for the method. So truck 1 can call deliver(truck1) for
-        #                               completing it's second route???????????? unless i'm not doing dynamic num of
-        #                               of trucks? so it would loop through the 3 instead of how it is now. and the last
-        #                               one just gets the start time from truck 1s end time?
+    for i in range(len(loaded_truck)):
+        truck = loaded_truck[i]
+
+        if i == 1:  # Truck 2 leaves at 9:05 am for delayed packages
+            leave_time = datetime.now().replace(hour=9, minute=5, second=0, microsecond=0)
+            truck.time = leave_time
+        if i == 2:  # Truck 3 leaves after Truck 1 returns to HUB
+            truck.time = loaded_truck[0].time
+
         for package_id in truck.package_list:
             package = packages_hash.search(package_id)
+            # Package w wrong address is updated after 10:30 am. Because it is on Truck 3, it will always be after 10:30
+            if package.notes.startswith('Wrong address'):
+                package.address ='410 S State St'
+                package.city = 'Salt Lake City'
+                package.state = 'UT'
+                package.zip_ = '84111'
             current_location = graph_instance.get_vertex(truck.location)
             next_location = graph_instance.get_vertex(package.get_address())
             print(package_id)
@@ -606,15 +545,13 @@ def deliver(loaded_truck):
             truck.location = package.get_address()
 
             packages_delivered += 1
-        #  Next 7 lines used just for returning to hub.. matches a lot of other lines. TODO Make separate function??
+        #  Next 5 lines used just for returning to hub.. matches a lot of other lines. TODO Make separate function??
         start = ' HUB'
         hub = graph_instance.get_vertex(start)
         distance = graph_instance.get_distance(graph_instance.get_vertex(truck.location), hub)
-        minutes_taken = int(distance // (truck.speed / 60))
-        # loaded_truck.time = time_string_forward(loaded_truck.time, minutes_taken)
         truck.miles_traveled += distance
         truck.location = start
-        # return_to_hub =
+
         mileage += truck.miles_traveled
         print(truck.miles_traveled)
         print(truck.time)
@@ -624,7 +561,7 @@ def deliver(loaded_truck):
     print()
     print('mileage')
     print(mileage)
-
+beginit = datetime.now()
 # paths to the csv files
 data_path = Path("data/WGUPS Package File.csv")
 data_path_destination = Path("data/WGUPS Distance Table.csv")
@@ -642,9 +579,7 @@ load_destination_data(data_path_destination, 8)
 
 # user_search()
 
-trucks = load_trucks(40)  # TODO each truck only holds 16 packages, 2 drivers. so one driver will need to return to
-#                                   hub to change trucks (or reload with remaining packages, doesn't need to change
-#                                   trucks necessarily, b/c load times are instantaneous.
+trucks = load_trucks(40)
 
 deliver(trucks)
 
@@ -654,9 +589,7 @@ print('delivered')
 print()
 for n in range(1, 41):
     print(packages_hash.search(n))
-
+print('time =')
+print(datetime.now()-beginit)
 # print('Test probability:')
 # print(exp(- (20.0-5) / (40 * .80)))
-# TODO okay, I think i'll make the truck amount be static, and in the 'what would you change' section of the paper,
-#   i could include implementing a dynamic number of truck choices. This also means that 'Move 2' in the paper
-#   might not be needed? maybe?? actually yeah, i don't think i need it b/c truck # doesn't matter, just mileage.
