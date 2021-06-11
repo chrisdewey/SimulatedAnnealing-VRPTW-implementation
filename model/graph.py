@@ -1,4 +1,4 @@
-from controller.hashing_with_chaining import ChainingHashTable
+from model.hashing_with_chaining import ChainingHashTable
 
 
 class Vertex:
@@ -31,6 +31,3 @@ class Graph:
 
     def get_distance(self, current_vertex, next_vertex):
         return self.edge_weights.search((current_vertex, next_vertex))
-
-    # def __str__(self):
-    #   return "adjList = %s, && edge weights = %s" % (self.adjacency_list, self.edge_weights)

@@ -3,30 +3,22 @@ import csv
 from model.package import Package
 from model.truck import Truck
 
-import controller.hashing_with_chaining
-import controller.graph
+import model.hashing_with_chaining
+import model.graph
 from math import ceil, exp
 from random import random, randint, choice
 from copy import deepcopy
-# it might be better to use hashing with chaining rather than open-addressing... depends how pythons hash() works
-#   and how the data is imported and hashed out (like what key is used??)
-# from controller.load_item_data import load_items
 
-# Load Trucks, which packages go into which truck, what time do they leave
-# Truck Routes
 # For UI: user passes in the Time, outputs statuses of Mileage, package statuses & info (is it in hub, delivered? etc)
 # UI can just be a console application
 
-# ideas for optimizing:
-#   you can hold a truck until 9, need to optimize miles NOT time.
-#   maybe use a priority queue, first a normal queue for mile optimization, then introduce priorities based
-#       upon special requests like time requirements etc????
 #   https://www.youtube.com/watch?v=SC5CX8drAtU watch this for ideas on optimization
 #   https://youtu.be/v5kaDxG5w30?t=588 also this at this time
 #   might want to change hash function to a different type, maybe reference textbook. save optimization like this
 #       for after the functionality is complete.
 from datetime import datetime, date, timedelta
 from pathlib import Path
+import time
 
 
 def user_search():  # will need to adapt to allow input of time as well?? implement after figuring out algo i guess.
@@ -39,6 +31,7 @@ def user_search():  # will need to adapt to allow input of time as well?? implem
     # default being all packages, to meet the checkpoint screenshot requirements)
 
     # Input asks for either HH:MM am/pm or 24hr clock???? would just have to check and parse.
+
     search_id = input('Enter the package ID for lookup, or type Exit to exit: ')
 
     exit_words = ['exit', 'x', 'close', 'bye', 'end']
@@ -106,7 +99,7 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
 
         for place in data:  # Add all vertices to the graph.
             address = place[1]
-            vertex = controller.graph.Vertex(address)
+            vertex = model.graph.Vertex(address)
             graph_instance.add_vertex(vertex, address)
             # print(vertex)
 
@@ -143,8 +136,7 @@ def load_trucks(num_packages):
     return truck
 
 
-def unoptimized_route(num_packages):  # Creates un-optimized routes by placing all packages in list in order given.
-    earliest_time = None
+def unoptimized_route(num_packages):  # Creates un-optimized routes in which packages still meet their requirements.
     package_id_list = []
     num_routes = ceil(num_packages / 16)  # Create the num of require routes. Each route can have <= 16 packages.
     route_list = [[] for _ in range(num_routes)]
@@ -162,21 +154,20 @@ def unoptimized_route(num_packages):  # Creates un-optimized routes by placing a
         if package.notes.startswith('Can only be on truck'):  # Specific truck requirement
             route_list[int(package.notes[-1]) - 1].append(i)  # appends to route of specific truck.
             package_id_list.remove(i)
-            # implement check if it has a deadline.. not needed for this dataset though.
         elif package.notes.startswith('Delayed'):  # Delayed packages requirement
             if package.deadline < eod:  # If the delayed package also has a deadline, prepend to front of list.
-                route_list[1].insert(0, i)  # Prepend to list TODO make choice of route dynamic???
+                route_list[1].insert(0, i)  # Prepend to list
                 package_id_list.remove(i)
             else:
                 delayed_until = datetime.strptime(package.notes[-7:], "%I:%M %p").time()  # last 7 last digits = time.
                 delayed_until_datetime = datetime.combine(date.today(), delayed_until)  # Needed????
-                route_list[1].append(i)  # TODO make choice of route dynamic???
+                route_list[1].append(i)
                 package_id_list.remove(i)
         elif package.notes.startswith('Wrong address'):
-            route_list[2].append(i)  # TODO make choice of route dynamic???
+            route_list[2].append(i)
             package_id_list.remove(i)
 
-    for i in package_id_list[:]:  # Distribute the rest of the packages.
+    for i in package_id_list[:]:  # Distribute packages with deadlines
         package = packages_hash.search(i)
 
         if package.deadline < min_deadline:  # Distribute packages w earliest deadline
@@ -193,7 +184,7 @@ def unoptimized_route(num_packages):  # Creates un-optimized routes by placing a
                     package_id_list.remove(i)
                     break
 
-    for i in package_id_list:  # Assign all other packages to the lists.
+    for i in package_id_list:  # Assign all other packages to the lists
         for j in range(len(route_list)):
             if len(route_list[j]) < 16:
                 route_list[j].append(i)
@@ -312,8 +303,6 @@ def simulated_annealing(initial_route):
     cooling_factor = 0.995
 
     inner_itr = 100  # variable for num of iterations for exploiting local search area Paper sets this as 6000,overkill
-    apple = 0
-    prob = 0.0
 
     while temp > target_temp:
         for i in range(inner_itr):
@@ -336,39 +325,32 @@ def simulated_annealing(initial_route):
             # source: https://stats.stackexchange.com/questions/453309/what-is-the-relationship-between-metropolis-hastings-and-simulated-annealing
             # TODO in comment here site source as wiki or a paper that has the formula, rather than a forum comment.
 
+            print("Work in progress( 0%%)", end=None)  # Python 2 print without newline
+            progress = 0
+
             # if d2 = d1, then do nothing... TODO or would it be better to make last ELSE be accept, meaning accept if =
             if d2 < d1:
                 routes = new_route.copy()
                 # print('less')
                 # print()
-                d1 = d2  # ??+
+                d1 = d2
                 # print()
                 # print('                                                       better')
             elif d2 > d1:  # if new_route is not better, accept change with probability
-                # probability = 1 / (exp(((d2 - d1) * k) / (d1 * temp)))
                 try:
                     probability = 1 / (exp((d2 - d1) / temp))
                 except OverflowError:
                     probability = 0
-                print('temp')
-                print(temp)
-                print('prob')
-                print(probability)
-                apple += 1
-                prob += probability
+
                 if random() < probability:
                     routes = new_route.copy()
-                    d1 = d2  # ??
-
-            else:
-                print('nothing happened')
+                    d1 = d2
 
         temp = temp * cooling_factor
-    print('apple')
-    print(apple)
-    print('prob')
-    print(prob)
-    print('nothings')
+
+        if temp:
+            progress = None
+            print("\b\b\b\b\b%2d%%)" % progress, end=None)
 
     return routes
 
@@ -430,7 +412,6 @@ def update_distances(routes_list, route_a, route_b, element_a, element_b, distan
     package_b = packages_hash.search(routes_list[route_b][element_b])
     b = graph_instance.get_vertex(package_b.get_address())
     hub = graph_instance.get_vertex(' HUB')
-    # distance_changes = [[] for _ in range(len(distances))]
 
     if element_a == 0:
         prev_a = hub
@@ -456,7 +437,6 @@ def update_distances(routes_list, route_a, route_b, element_a, element_b, distan
         next_b_package = packages_hash.search(routes_list[route_b][element_b + 1])
         next_b = graph_instance.get_vertex(next_b_package.get_address())
 
-    # if element_a != element_b-1:  # If they are not neighbors in the route list, swap edge vertices for a+1 and b-1
     if a == prev_b:  # a and b are neighbors, and a comes first
         new_d[route_a] -= graph_instance.get_distance(prev_a, a)
         new_d[route_a] += graph_instance.get_distance(prev_a, b)
@@ -529,7 +509,6 @@ def deliver(loaded_truck):
             print(package_id)
             distance = graph_instance.get_distance(current_location, next_location)  # in miles
             seconds_taken = int(distance // (truck.speed / 3600))
-            # minutes_taken = int(distance // (loaded_truck.speed / 60))
             print(distance)
             truck.time += timedelta(seconds=seconds_taken)
             package.status = truck.time
@@ -561,23 +540,23 @@ def deliver(loaded_truck):
     print()
     print('mileage')
     print(mileage)
+
+
 beginit = datetime.now()
 # paths to the csv files
 data_path = Path("data/WGUPS Package File.csv")
 data_path_destination = Path("data/WGUPS Distance Table.csv")
 
 # initialize the ChainingHashTable instance
-packages_hash = controller.hashing_with_chaining.ChainingHashTable()
+packages_hash = model.hashing_with_chaining.ChainingHashTable()
 
 # initialize the Graph instance. Input set as n^2, where n = the number of destinations in 'WGUPS Distance Table.csv' to
 #   reduce collisions and keep lookup time as close to O(1) as possible.
-graph_instance = controller.graph.Graph(729)
+graph_instance = model.graph.Graph(729)
 
 # second argument = the number of header lines to skip in the csv file before processing the data.
 load_package_data(data_path, 8)
 load_destination_data(data_path_destination, 8)
-
-# user_search()
 
 trucks = load_trucks(40)
 
@@ -593,3 +572,5 @@ print('time =')
 print(datetime.now()-beginit)
 # print('Test probability:')
 # print(exp(- (20.0-5) / (40 * .80)))
+
+# user_search()

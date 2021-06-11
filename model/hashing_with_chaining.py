@@ -33,6 +33,3 @@ class ChainingHashTable:
             if i[0] == key:
                 return i[1]
         return None
-        # if key in buckets_list:
-        #    item_index = buckets_list.index(key)
-        #    return buckets_list[item_index]

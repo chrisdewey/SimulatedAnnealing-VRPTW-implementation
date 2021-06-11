@@ -18,5 +18,3 @@ class Truck:
 
     def __str__(self):
         return "%s, %s, %s" % (self.truck_num, self.package_list, self.location)
-
-# things the Truck class needs = location, time, time left hub, package/weight limit (depending on req.s)
