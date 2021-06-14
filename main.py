@@ -1,4 +1,3 @@
-# TODO put name and student id before submitting
 import csv
 from model.package import Package
 from model.truck import Truck
