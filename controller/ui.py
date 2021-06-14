@@ -5,6 +5,9 @@ def user_menu(packages_hash):
     """
     The user interface of the program.
 
+    Time Complexity: O(1)
+    Space Complexity: O(1)
+
     :param packages_hash:
     """
     exit_words = ['exit', 'x', 'close', 'bye', 'end']
@@ -29,6 +32,9 @@ def user_menu(packages_hash):
 def search_by_time(packages_hash, exit_words):
     """
     Prompts user for time input and returns status of all packages at the given time.
+
+    Time Complexity: O(1)  Loops through all package ids (constant), and looks them up in the hash table (constant)
+    Space Complexity: O(1)
 
     :param packages_hash:
     :param exit_words:
@@ -55,10 +61,10 @@ def search_by_time(packages_hash, exit_words):
         for i in range(1, 41):
             package = packages_hash.search(i)
             if package.timestamp < user_datetime:
-                print(package.id_, package.address, package.city, package.state, package.zip_, package.status)
+                print(package)
             else:
-                print(package.id_, package.address, package.city, package.state, package.zip_,
-                      'Package Not Yet Delivered')
+                print(package.id_, '\b,', package.address, '\b,', package.city, '\b,', package.state, '\b,',
+                      package.zip_, '\b,', package.notes, '\b, ', 'Package Not Yet Delivered')
         return user_menu(packages_hash)
     else:  # 24 hr clock
         try:
@@ -70,17 +76,19 @@ def search_by_time(packages_hash, exit_words):
         for i in range(1, 41):
             package = packages_hash.search(i)
             if package.timestamp < user_datetime:
-                print(package.id_, package.address, package.city, package.state, package.zip_, package.status,
-                      'at', package.timestamp)
+                print(package)
             else:
-                print(package.id_, package.address, package.city, package.state, package.zip_,
-                      'Package Not Yet Delivered')
+                print(package.id_, '\b,', package.address, '\b,', package.city, '\b,', package.state, '\b,',
+                      package.zip_, '\b,', package.notes, '\b, ', 'Package Not Yet Delivered')
         return user_menu(packages_hash)
 
 
 def search_by_id(packages_hash, exit_words):
     """
     Prompts user for a Package ID, and returns the time it was delivered.
+
+    Time Complexity: O(1)
+    Space Complexity: O(1)
 
     :param packages_hash:
     :param exit_words:

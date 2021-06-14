@@ -8,6 +8,11 @@ def deliver(packages_hash, graph_instance, loaded_truck):
     when they are delivered. Each Truck returns to the HUB after their delivery route is finished.
     Because there are only 2 drivers, Truck 3 only leaves after Truck 1 returns.
 
+    Time Complexity: Worst Case O(n^2) if packages_hash.search, graph_instance.get_vertex or graph_instance.get_distance
+                                         inserts into a hash table where every element is in the same bucket
+                     Average Case O(N) where N = the total number of elements in the trucks package lists
+    Space Complexity: O(1)
+
     :param packages_hash:
     :param graph_instance:
     :param loaded_truck: The loaded trucks to deliver packages
@@ -25,8 +30,8 @@ def deliver(packages_hash, graph_instance, loaded_truck):
 
         for package_id in truck.package_list:
             package = packages_hash.search(package_id)
-            # Package w wrong address is updated after 10:30 am. Because it is on Truck 3, it will always be after 10:30
-            if package.notes.startswith('Wrong address'):
+            # Package w wrong key is updated after 10:30 am. Because it is on Truck 3, it will always be after 10:30
+            if package.notes.startswith('Wrong key'):
                 package.address = '410 S State St'
                 package.city = 'Salt Lake City'
                 package.state = 'UT'
@@ -41,7 +46,7 @@ def deliver(packages_hash, graph_instance, loaded_truck):
 
             truck.miles_traveled += distance
 
-            # after delivering package, current truck location is the just delivered packages address.
+            # after delivering package, current truck location is the just delivered packages key.
             truck.location = package.get_address()
 
             packages_delivered += 1
@@ -53,11 +58,13 @@ def deliver(packages_hash, graph_instance, loaded_truck):
         truck.location = start
 
         mileage += truck.miles_traveled
+        print('Truck: ' + str(truck.truck_num))
+        print('Miles Traveled: ', end='')
         print(truck.miles_traveled)
+        print('Time Returned to HUB: ', end='')
         print(truck.time)
-        print(packages_delivered)
+        print('Route: ', end='')
         print(truck.package_list)
         print()
-    print()
-    print('mileage')
+    print('Total Mileage: ', end='')
     print(mileage)

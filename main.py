@@ -16,6 +16,10 @@ def load_package_data(input_data, header_lines):  # Move to it's own controller 
     """
     Parses the csv file and stores the package data in a hash data structure using hashing with chaining.
 
+    Time Complexity: Worst Case O(N^2) if packages_hash puts all packages into the same hash bucket
+                     Average Case O(N)
+    Space Complexity: O(N)
+
     :param input_data: csv file containing the package data
     :param header_lines: number of header lines to skip in the csv file
     """
@@ -54,13 +58,17 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
     """
     Parses the csv file and stores the destination and distances data in a graph data structure.
 
+    Time Complexity: Worst Case O(N^2) if graph_instance.add_vertex, graph_instance.get_vertex, or
+                                        graph_instance.add_undirected_edge places into a hash that
+                                        puts all elements into the same bucket.
+                     Average Case O(N)
+    Space Complexity: O(N)
+
     :param input_data: csv file containing the destination and distances data
     :param header_lines: number of header lines to skip in the csv file
     """
     with open(input_data) as places:
         data = csv.reader(places, delimiter=',')
-        # If needed can instead change num_col to header_col to get names of each place in a list as a keys list
-        # then num_col can be len() of that var.
         num_col = len(next(data))  # count number of columns in the csv file
         places.seek(0)  # Return csv reader back to start of file
         for i in range(0, header_lines):  # skip specified number of header lines
@@ -70,7 +78,6 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
             address = place[1]
             vertex = model.graph.Vertex(address)
             graph_instance.add_vertex(vertex, address)
-            # print(vertex)
 
         places.seek(0)  # Return csv reader back to start of file.
         for i in range(0, header_lines):  # skip specified number of header lines
@@ -78,8 +85,8 @@ def load_destination_data(input_data, header_lines):  # Move to own controller f
 
         index_counter = 0
         for place in data:  # Add edges to the graph.
-            name = place[0]
-            address = place[1]
+            # name = place[0]
+            # key = place[1]
             i = 2
             while place[i] != '':
                 if place[i] != '':
@@ -98,15 +105,17 @@ def load_trucks(optimized_routes):
     """
     Creates each truck object
 
+    Time Complexity: O(1)
+    Space Complexity: O(1)
+
     :param optimized_routes: The list of routes (lists with package id's in optimized order)
     :return: list of all loaded trucks
     """
 
-    route = 1
     truck = []
     for i in range(0, 3):  # Create the 3 trucks and include the optimized package lists
         start_time = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-        truck.append(Truck(i + 1, optimized_routes[i], start_time, route))
+        truck.append(Truck(i + 1, optimized_routes[i], start_time))
     return truck
 
 
@@ -137,6 +146,9 @@ routes = simulated_annealing(packages_hash, graph_instance, first_routes)
 trucks = load_trucks(routes)
 # simulate the delivery of the trucks and process time and mileage to complete the deliveries
 deliver(packages_hash, graph_instance, trucks)
+
+print('Optimization Runtime: ', end='')
+print(datetime.now()-runtime)
 
 # start the console menu
 user_menu(packages_hash)
