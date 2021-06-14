@@ -13,7 +13,8 @@ def unoptimized_route(packages_hash, num_packages):
     Then place packages with deadlines into the packages.
     Finally, fill the rest of the routes by appending the remaining packages to their lists.
 
-    Time Complexity: O(N*M) where N = all packages, and M = the number or routes (3 in our case)
+    Time Complexity: O(N)  Although there are nested For Loops on lines 56, 63, 70 they are used solely to check if the
+                            route is full, else it moves to the next. The loops break when package is assigned to a list
     Space Complexity: O(N)  where N = num_packages
 
     :param packages_hash: hash instance that houses the package data
@@ -53,14 +54,14 @@ def unoptimized_route(packages_hash, num_packages):
 
         if package.deadline < min_deadline:  # Distribute packages w earliest deadline
             for j in range(len(route_list)):
-                if len(route_list[j]) < 16:  # Compare deadline times so 9:00 deadline is delivered before 10:30 ones???
+                if len(route_list[j]) < 16:
                     route_list[j].insert(0, i)  # Prepend to the list
                     package_id_list.remove(i)
                     break
 
         elif package.deadline < eod:  # Distribute other packages w a deadline
             for j in range(len(route_list)):
-                if len(route_list[j]) < 16:  # Compare deadline times so 9:00 deadline is delivered before 10:30 ones???
+                if len(route_list[j]) < 16:
                     route_list[j].insert(1, i)  # Prepend to the list
                     package_id_list.remove(i)
                     break

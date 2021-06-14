@@ -249,7 +249,16 @@ def valid_move(p_hash, routes_list, ra_num, rb_num, a, b):
     """
     Validates the proposed route change of swapping elements a and b by checking whether the change would move either
     element to a position that would violate their respective requirements.
-    TODO writeup how they hard code where delayed/wrong address packages go!
+
+    Packages with early morning deadlines (less than 10:30am) are checked to ensure they stay on Truck 1. This would be
+    problematic if there are many packages with an early morning deadline.
+
+    Packages with any other deadline besides EOD (end of day) are checked to ensure they are not on Truck 3 (because it
+    leaves after Truck 1 returns) and that they are near the beginning of the route. Either < 12 stops if on Truck 1,
+    or < 6 stops if on Truck 2(because Truck 2 leaves after 9:05am to accommodate delayed packages). These numbers were
+    found by running the optimization program and getting average times when the specified truck would exceed the needed
+    time to make the deadline, making the deadline choice dynamic and not scalable.
+
     Time Complexity: Worst Case O(N) when p_hash.search searches the hash table if all elements are in the same bucket
                      Average Case O(1)
     Space Complexity: O(1)
