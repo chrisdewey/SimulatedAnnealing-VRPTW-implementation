@@ -1,13 +1,14 @@
 from datetime import datetime, date
 
 
-def user_menu(packages_hash):
+def user_menu(packages_hash, trucks):
     """
     The user interface of the program.
 
     Time Complexity: O(1)
     Space Complexity: O(1)
 
+    :param trucks: list of trucks
     :param packages_hash:
     """
     exit_words = ['exit', 'x', 'close', 'bye', 'end']
@@ -21,21 +22,22 @@ def user_menu(packages_hash):
     user_input = input('Please choose a menu item: ')
 
     if user_input == '1':
-        search_by_time(packages_hash, exit_words)
+        search_by_time(packages_hash, trucks, exit_words)
     elif user_input == '2':
-        search_by_id(packages_hash, exit_words)
+        search_by_id(packages_hash, trucks, exit_words)
     elif user_input == '3' or user_input in exit_words:
         print('Goodbye.')
         return
 
 
-def search_by_time(packages_hash, exit_words):
+def search_by_time(packages_hash, trucks, exit_words):
     """
     Prompts user for time input and returns status of all packages at the given time.
 
     Time Complexity: O(1)  Loops through all package ids (constant), and looks them up in the hash table (constant)
     Space Complexity: O(1)
 
+    :param trucks: list of trucks
     :param packages_hash:
     :param exit_words:
     """
@@ -55,7 +57,7 @@ def search_by_time(packages_hash, exit_words):
             user_time = datetime.strptime(time_input, "%I:%M%p").time()
         except ValueError:
             print('Please enter a valid time.')
-            return search_by_time(packages_hash, exit_words)
+            return search_by_time(packages_hash, trucks, exit_words)
 
         user_datetime = datetime.combine(date.today(), user_time)
         for i in range(1, 41):
@@ -64,32 +66,37 @@ def search_by_time(packages_hash, exit_words):
                 print(package)
             else:
                 print(package.id_, '\b,', package.address, '\b,', package.city, '\b,', package.state, '\b,',
-                      package.zip_, '\b,', package.notes, '\b, ', 'Package Not Yet Delivered')
-        return user_menu(packages_hash)
+                      package.zip_, '\b,', package.notes, '\b, ', 'en route')
+        return user_menu(packages_hash, trucks)
     else:  # 24 hr clock
         try:
             user_time = datetime.strptime(time_input, "%H:%M").time()
         except ValueError:
             print('Please enter a valid time.')
-            return search_by_time(packages_hash, exit_words)
+            return search_by_time(packages_hash, trucks, exit_words)
         user_datetime = datetime.combine(date.today(), user_time)
         for i in range(1, 41):
             package = packages_hash.search(i)
+            assigned_truck = trucks[package.assigned_truck]
             if package.timestamp < user_datetime:
                 print(package)
+            elif user_datetime < assigned_truck.time_left_hub:
+                print(package.id_, '\b,', package.address, '\b,', package.city, '\b,', package.state, '\b,',
+                      package.zip_, '\b,', 'deadline: ', package.deadline, '\b,', package.notes, '\b, ', 'at the hub')
             else:
                 print(package.id_, '\b,', package.address, '\b,', package.city, '\b,', package.state, '\b,',
-                      package.zip_, '\b,', package.notes, '\b, ', 'Package Not Yet Delivered')
-        return user_menu(packages_hash)
+                      package.zip_, '\b,', 'deadline: ', package.deadline, '\b,', package.notes, '\b, ', 'en route')
+        return user_menu(packages_hash, trucks)
 
 
-def search_by_id(packages_hash, exit_words):
+def search_by_id(packages_hash, trucks, exit_words):
     """
     Prompts user for a Package ID, and returns the time it was delivered.
 
     Time Complexity: O(1)
     Space Complexity: O(1)
 
+    :param trucks:
     :param packages_hash:
     :param exit_words:
     """
@@ -105,12 +112,12 @@ def search_by_id(packages_hash, exit_words):
         if item is not None:
             print(item)
             print()
-            user_menu(packages_hash)
+            user_menu(packages_hash, trucks)
         else:
             print('Could not Find Package: ' + str(search_id))
             print()
-            user_menu(packages_hash)
+            user_menu(packages_hash, trucks)
     except ValueError:
         print('Could Not Find Package: ' + search_id)
         print()
-        user_menu(packages_hash)
+        user_menu(packages_hash, trucks)

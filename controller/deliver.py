@@ -24,9 +24,11 @@ def deliver(packages_hash, graph_instance, loaded_truck):
 
         if i == 1:  # Truck 2 leaves at 9:05 am for delayed packages
             leave_time = datetime.now().replace(hour=9, minute=5, second=0, microsecond=0)
+            truck.time_left_hub = datetime.now().replace(hour=9, minute=5, second=0, microsecond=0)
             truck.time = leave_time
         if i == 2:  # Truck 3 leaves after Truck 1 returns to HUB
             truck.time = loaded_truck[0].time
+            truck.time_left_hub = loaded_truck[0].time
 
         for package_id in truck.package_list:
             package = packages_hash.search(package_id)
@@ -43,6 +45,7 @@ def deliver(packages_hash, graph_instance, loaded_truck):
             truck.time += timedelta(seconds=seconds_taken)
             package.status = 'Delivered'
             package.timestamp = truck.time
+            package.assigned_truck = i
 
             truck.miles_traveled += distance
 
@@ -50,7 +53,7 @@ def deliver(packages_hash, graph_instance, loaded_truck):
             truck.location = package.get_address()
 
             packages_delivered += 1
-        # Next 5 lines used just for returning to hub.. matches a lot of other lines. TODO Make separate function??
+        # Next 5 lines used for returning to hub
         start = ' HUB'
         hub = graph_instance.get_vertex(start)
         distance = graph_instance.get_distance(graph_instance.get_vertex(truck.location), hub)

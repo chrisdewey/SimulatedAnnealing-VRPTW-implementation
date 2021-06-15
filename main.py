@@ -126,7 +126,7 @@ data_path = Path("data/WGUPS Package File.csv")
 data_path_destination = Path("data/WGUPS Distance Table.csv")
 
 # initialize the ChainingHashTable instance
-packages_hash = model.hashing_with_chaining.ChainingHashTable()
+packages_hash = model.hashing_with_chaining.ChainingHashTable(40)  # argument = number of packages
 
 # initialize the Graph instance. Input set as n^2, where n = the number of destinations in 'WGUPS Distance Table.csv' to
 #   reduce collisions and keep lookup time as close to O(1) as possible.
@@ -150,4 +150,4 @@ print('Optimization Runtime: ', end='')
 print(datetime.now()-runtime)
 
 # start the console menu
-user_menu(packages_hash)
+user_menu(packages_hash, trucks)

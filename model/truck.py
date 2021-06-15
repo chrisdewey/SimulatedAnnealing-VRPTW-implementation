@@ -7,7 +7,7 @@ class Truck:
         self.package_list = package_list
         self.location = ' HUB'  # trucks start at hub
         self.time = time_to_leave_hub
-        self.time_left_hub = time_to_leave_hub  # not sure i need both variables??
+        self.time_left_hub = time_to_leave_hub
         self.speed = speed  # in mph
         self.miles_traveled = 0.0
 

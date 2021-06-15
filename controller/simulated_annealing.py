@@ -46,7 +46,7 @@ def simulated_annealing(p_hash, graph_instance, initial_route):
     mileage = find_mileages(p_hash, graph_instance, routes)  # Distances of each sub route in route
     d1 = sum(mileage)  # Total distance of route
 
-    temp = 240  # Initial Temperature set to 80° ?? y decimal and no just 80?? need to test vars!
+    temp = 240  # Initial Temperature
     target_temp = 0.00001
     cooling_factor = 0.99995
 
