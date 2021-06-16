@@ -8,8 +8,8 @@ CONTENTS OF THIS FILE
 INTRODUCTION
 ------------
 
-This program is an implementation of the **Simulated Annealing** algorithm as a solution to a [Vehicle Routing Problem](https://en.wikipedia.org/wiki/Vehicle_routing_problem)
-with Time Constraints (VRPTW), written in Python. There is an included sample dataset of packages to be delivered to
+This program is a Python written implementation of the **Simulated Annealing** algorithm as a solution to a [Vehicle Routing Problem](https://en.wikipedia.org/wiki/Vehicle_routing_problem)
+with Time Constraints (VRPTW), a generalization of the Travelling Salesman Problem. There is an included sample dataset of packages to be delivered to
 customers along with a distance table. The purpose of the algorithm is to create a route with a near optimal order of
 packages to be delivered by keeping the total mileage of the route as low as possible, while still ensuring the packages
 all meet their requirements including: delivery deadlines, wrong address changes, and packages delayed to the HUB.
